@@ -1,0 +1,8 @@
+services:
+  biblioteca_api:
+    build: .
+    container_name: server_BibliotecaAPI
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app:/app/app
