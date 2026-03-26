@@ -1,5 +1,5 @@
 from fastapi import status, HTTPException, Depends, APIRouter
-from app.models.usuario import crear_usuario
+from app.models.usuario import crear_usuario, actualizar_usuario_parcial
 from app.security.auth import verificar_peticion
 
 from sqlalchemy.orm import Session
@@ -21,6 +21,17 @@ async def leer_usuarios(db: Session = Depends(get_db)):
     }
 
 
+@router.get("/{id}")
+async def leer_usuario(id: int, db: Session = Depends(get_db)):
+    usr = db.query(dbUsuario).filter(dbUsuario.id == id).first()
+    if not usr:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return {
+        "usuario": usr,
+        "status": "200"
+    }
+
+
 @router.post("/", status_code=status.HTTP_201_CREATED)
 async def crear_usuario_endpoint(usuarioP: crear_usuario, db: Session = Depends(get_db)):
     nuevoU = dbUsuario(nombre=usuarioP.nombre, edad=usuarioP.edad)
@@ -33,8 +44,7 @@ async def crear_usuario_endpoint(usuarioP: crear_usuario, db: Session = Depends(
         "status": "201"
     }
 
-
-@router.put("/")
+@router.put("/{id}")
 async def actualizar_usuario(id: int, usuarioP: crear_usuario, db: Session = Depends(get_db)):
     usr = db.query(dbUsuario).filter(dbUsuario.id == id).first()
     if not usr:
@@ -50,14 +60,15 @@ async def actualizar_usuario(id: int, usuarioP: crear_usuario, db: Session = Dep
     }
 
 
-@router.patch("/")
-async def actualizar_usuario_parcial(id: int, campos: dict, db: Session = Depends(get_db)):
+@router.patch("/{id}")
+async def actualizar_usuario_parcial_endpoint(id: int, campos: actualizar_usuario_parcial, db: Session = Depends(get_db)):
     usr = db.query(dbUsuario).filter(dbUsuario.id == id).first()
     if not usr:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    for campo, valor in campos.items():
-        if campo != "id" and hasattr(usr, campo):
-            setattr(usr, campo, valor)
+    # Solo actualizar campos que vienen con valor (exclude_unset ignora los no enviados)
+    datos = campos.model_dump(exclude_unset=True)
+    for campo, valor in datos.items():
+        setattr(usr, campo, valor)
     db.commit()
     db.refresh(usr)
     return {
@@ -67,7 +78,7 @@ async def actualizar_usuario_parcial(id: int, campos: dict, db: Session = Depend
     }
 
 
-@router.delete("/")
+@router.delete("/{id}")
 async def eliminar_usuario(id: int, usuarioAuth: str = Depends(verificar_peticion), db: Session = Depends(get_db)):
     usr = db.query(dbUsuario).filter(dbUsuario.id == id).first()
     if not usr:
